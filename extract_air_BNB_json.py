@@ -1,6 +1,7 @@
 import json
 from pydantic import BaseModel
 from typing import Dict,List,Any
+import mysql.connector
 
 class Airbnb(BaseModel):
     Baner_Name: str
@@ -130,16 +131,84 @@ def convert_json_file(data):
     with open("air_bnb_data.json", "w") as files:
         json.dump(data, files, indent=4)
 
-
-
-
-
-
-
 data = read_json_data(Base_path)
 name = find_first_embed_name(data)
 
 validated = Airbnb.model_validate(name)
 va = validated.model_dump()
 convert_json_file(va)
+
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="actowiz",
+    database="Extract_Json_Databse"
+)
+
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS airbnb_baner_listing (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    baner_name VARCHAR(255),
+    baner_id BIGINT UNIQUE,
+    property_type VARCHAR(150),
+    max_guest_capacity INT,
+    total_reviews INT,
+    rating FLOAT,
+    address VARCHAR(255),
+    amenities JSON,
+    images JSON,
+    host_name VARCHAR(150),
+    host_rating FLOAT,
+    host_review_count INT,
+    host_work VARCHAR(150),
+    host_fun_fact TEXT,
+    host_for_guests TEXT,
+    host_pets TEXT,
+    hosting_year VARCHAR(50)
+);
+""")
+cursor.execute("""
+INSERT INTO airbnb_baner_listing(
+    baner_name,
+    baner_id,
+    property_type,
+    max_guest_capacity,
+    total_reviews,
+    rating,
+    address,
+    amenities,
+    images,
+    host_name,
+    host_rating,
+    host_review_count,
+    host_work,
+    host_fun_fact,
+    host_for_guests,
+    host_pets,
+    hosting_year
+) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+""", (
+    va["Baner_Name"],
+    va["Baner_Id"],
+    va["Basic_information"]["PropertyType"],
+    va["Basic_information"]["Max_guests_Capacity"],
+    va["Basic_information"]["Review"],
+    va["Basic_information"]["Rating"],
+    va["Location"]["Address"],
+    json.dumps(va["allAmenities"]),
+    json.dumps(va["images"]),
+    va["Host_Details"]["name"],
+    va["Host_Details"]["rating"],
+    va["Host_Details"]["review_count"],
+    va["Host_Details"]["about"]["work"],
+    va["Host_Details"]["about"]["fun_fact"],
+    va["Host_Details"]["about"]["for_guests"],
+    va["Host_Details"]["about"]["pets"],
+    va["Host_Details"]["hosting_year"]
+))
+
+conn.commit()
+print("Data Insert")
 
